@@ -80,17 +80,22 @@ print("\n🎉 Flat-file cleaning sequence successfully terminated.")
 # 4. DATA MIGRATION TO SQLite DATABASE
 # ==========================================
 print("\n🗄️ Initializing relational storage compilation...")
+from sqlalchemy import text  # Missing utility wrapper
+
 engine = create_engine(f"sqlite:///{DB_PATH}")
 
 # Initialize schema layout models using your local static file rules
 with open("schema.sql", "r") as f:
     sql_schema = f.read()
 
-# Split out separate command blocks to prevent engine parsing exceptions
+# Execute each statement cleanly as a proper SQL text object
 with engine.connect() as connection:
+    # Split by semicolon and transaction blocks
     for statement in sql_schema.split(";"):
-        if statement.strip():
-            connection.execute(np.str_(statement))
+        clean_statement = statement.strip()
+        if clean_statement:
+            connection.execute(text(clean_statement))  # Fixed: wrapped in text()
+    connection.commit()  # Make sure schema changes are saved
 
 print("   ✅ Normalised Star Schema tables generated successfully.")
 
@@ -100,4 +105,4 @@ pd.read_csv(os.path.join(PROCESSED_DIR, "clean_fund_master.csv")).to_sql("dim_fu
 pd.read_csv(os.path.join(PROCESSED_DIR, "clean_nav.csv")).to_sql("fact_nav", engine, if_exists="append", index=False)
 pd.read_csv(os.path.join(PROCESSED_DIR, "clean_transactions.csv")).to_sql("fact_transactions", engine, if_exists="append", index=False)
 
-print("\n🏆 SUCCESS: Day 2 pipeline ran successfully! bluestock_mf.db database is compiled.")
+print("\n🏆 SUCCESS: Day 2 pipeline ran completely! bluestock_mf.db database is compiled with rows.")
